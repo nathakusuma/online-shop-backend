@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"fmt"
+	"github.com/go-playground/validator/v10"
 	producthandler "online-shop-backend/internal/app/product/interface/rest"
 	"online-shop-backend/internal/app/product/repository"
 	productusecase "online-shop-backend/internal/app/product/usecase"
@@ -24,12 +25,18 @@ func Start() error {
 		return err
 	}
 
+	if err := mysql.Migrate(database); err != nil {
+		return err
+	}
+
+	val := validator.New()
+
 	app := fiber.New()
 	v1 := app.Group("/api/v1")
 
 	productRepository := repository.NewProductMySQL(database)
 	productUsecase := productusecase.NewProductUsecase(productRepository)
-	producthandler.NewProductHandler(v1, productUsecase)
+	producthandler.NewProductHandler(v1, productUsecase, val)
 
 	return app.Listen(fmt.Sprintf(":%d", config.AppPort))
 }
