@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"github.com/go-playground/validator/v10"
 	producthandler "online-shop-backend/internal/app/product/interface/rest"
-	"online-shop-backend/internal/app/product/repository"
+	productrepository "online-shop-backend/internal/app/product/repository"
 	productusecase "online-shop-backend/internal/app/product/usecase"
+	userhandler "online-shop-backend/internal/app/user/interface/rest"
+	userrepository "online-shop-backend/internal/app/user/repository"
+	userusecase "online-shop-backend/internal/app/user/usecase"
 	"online-shop-backend/internal/infra/env"
 	"online-shop-backend/internal/infra/fiber"
+	"online-shop-backend/internal/infra/jwt"
 	"online-shop-backend/internal/infra/mysql"
+	"online-shop-backend/internal/middleware"
+	"time"
 )
 
 func Start() error {
@@ -31,12 +37,25 @@ func Start() error {
 
 	val := validator.New()
 
+	jwtExpiredTime, err := time.ParseDuration(config.JWTTTL)
+	if err != nil {
+		return err
+	}
+	jwtInstance := jwt.NewJWT(config.JWTSecret, jwtExpiredTime)
+
 	app := fiber.New()
 	v1 := app.Group("/api/v1")
 
-	productRepository := repository.NewProductMySQL(database)
+	userRepository := userrepository.NewUserMySQL(database)
+	productRepository := productrepository.NewProductMySQL(database)
+
+	userUsecase := userusecase.NewUserUsecase(userRepository, jwtInstance)
 	productUsecase := productusecase.NewProductUsecase(productRepository)
-	producthandler.NewProductHandler(v1, productUsecase, val)
+
+	midw := middleware.NewMiddleware(jwtInstance)
+
+	userhandler.NewUserHandler(v1, userUsecase, val)
+	producthandler.NewProductHandler(v1, productUsecase, midw, val)
 
 	return app.Listen(fmt.Sprintf(":%d", config.AppPort))
 }

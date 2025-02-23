@@ -7,30 +7,42 @@ import (
 	"net/http"
 	"online-shop-backend/internal/app/product/usecase"
 	"online-shop-backend/internal/domain/dto"
+	"online-shop-backend/internal/middleware"
 )
 
 type ProductHandler struct {
 	ProductUsecase usecase.ProductUsecaseItf
+	Middleware     middleware.MiddlewareItf
 	Validator      *validator.Validate
 }
 
 func NewProductHandler(
 	routerGroup fiber.Router,
 	productUsecase usecase.ProductUsecaseItf,
+	middleware middleware.MiddlewareItf,
 	validator *validator.Validate,
 ) {
 	ProductHandler := ProductHandler{
 		ProductUsecase: productUsecase,
+		Middleware:     middleware,
 		Validator:      validator,
 	}
 
 	routerGroup = routerGroup.Group("/products")
 
+	routerGroup.Use(ProductHandler.Middleware.Authentication)
+
 	routerGroup.Get("", ProductHandler.GetAllProducts)
-	routerGroup.Post("", ProductHandler.CreateProduct)
+	routerGroup.Post("",
+		ProductHandler.Middleware.Authorization,
+		ProductHandler.CreateProduct)
 	routerGroup.Get("/:id", ProductHandler.GetSpecificProduct)
-	routerGroup.Patch("/:id", ProductHandler.UpdateProduct)
-	routerGroup.Delete("/:id", ProductHandler.DeleteProduct)
+	routerGroup.Patch("/:id",
+		ProductHandler.Middleware.Authorization,
+		ProductHandler.UpdateProduct)
+	routerGroup.Delete("/:id",
+		ProductHandler.Middleware.Authorization,
+		ProductHandler.DeleteProduct)
 }
 
 func (h *ProductHandler) GetSpecificProduct(ctx *fiber.Ctx) error {

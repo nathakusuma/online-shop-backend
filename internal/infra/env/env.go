@@ -12,6 +12,8 @@ type Env struct {
 	DBHost     string `env:"DB_HOST"`
 	DBPort     int    `env:"DB_PORT"`
 	DBName     string `env:"DB_NAME"`
+	JWTSecret  string `env:"JWT_SECRET"`
+	JWTTTL     string `env:"JWT_TTL"`
 }
 
 func New() (*Env, error) {
